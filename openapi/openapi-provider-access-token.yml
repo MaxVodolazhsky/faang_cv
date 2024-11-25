@@ -1,0 +1,134 @@
+openapi: 3.0.3
+info:
+  title: GigaChat API
+  version: 1.0.0
+  contact:
+    name: GigaChat API
+    url: 'https://developers.sber.ru/portal/products/gigachat-api'
+    email: gigachat@sberbank.ru
+  description: |
+
+    Чтобы получить токен, отправьте запрос [POST /api/v2/oauth](/ru/gigachat/api/reference/rest/post-token):
+
+    ```sh
+    curl -L -X POST 'https://ngw.devices.sberbank.ru:9443/api/v2/oauth' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    -H 'Accept: application/json' \
+    -H 'RqUID: <идентификатор_запроса>' \
+    -H 'Authorization: Basic ключ_авторизации' \
+    --data-urlencode 'scope=GIGACHAT_API_PERS'
+    ```
+
+    Где:
+
+    * `RqUID` — обязательный заголовок, в котором нужно передать уникальный идентификатор запроса в формате `uuid4`. Идентификатор нужно указать самостоятельно, для этого можно использовать стандартные библиотеки и классы для генерации UUID и GUID.
+    * `Authorization` — обязательный заголовок, в котором нужно передать ключ авторизации — строку, полученную в результате кодирования в base64 идентификатора (Client ID) и клиентского ключа (Client Secret) API.
+    * `scope` — обязательное поле в теле запроса, которое указывает к какой версии API выполняется запрос. Возможные значения:
+      * `GIGACHAT_API_PERS` — доступ для физических лиц.
+      * `GIGACHAT_API_B2B` — доступ для ИП и юридических лиц по [платным пакетам](/ru/gigachat/quickstart/legal-tokens-purchase#pokupka-paketov).
+      * `GIGACHAT_API_CORP` — доступ для ИП и юридических лиц по схеме [pay-as-you-go](/ru/gigachat/quickstart/legal-tokens-purchase#oplata-pay-as-you-go).
+    При успешном выполнении запроса GigaChat API вернет токен доступа, который действует в течение 30 минут:
+    ```json
+    {
+      "access_token": "eyJhbGci3iJkaXIiLCJlbmMiOiJBMTI4R0NNIiwidHlwIjoiSldUIn0..Dx7iF7cCxL8SSTKx.Uu9bPK3tPe_crdhOJqU3fmgJo_Ffvt4UsbTG6Nn0CHghuZgA4mD9qiUiSVC--okoGFkjO77W.vjYrk3T7vGM6SoxytPkDJw",
+      "expires_at": 1679471442
+    }
+    ```
+    Как получить ключ авторизации и токен доступа Access token читайте в разделах [Быстрый старт для физических лиц](/ru/gigachat/individuals-quickstart) и [Быстрый старт для ИП и юридических лиц](/ru/gigachat/legal-quickstart).
+    :::
+
+servers:
+  - url: https://gigachat.devices.sberbank.ru/api/v1
+  - url: https://gigachat-preview.devices.sberbank.ru/api/v1
+tags:
+  - name: Авторизация
+    description: Получение токена доступа для авторизации запросов.
+paths:
+  /api/v2/oauth:
+    post:
+      tags:
+        - OAuth
+      parameters:
+        - name: RqUID
+          in: header
+          description: |
+            Уникальный идентификатор запроса. Соответствует формату [`uuid4`](https://www.uuidgenerator.net/version4).
+            Параметр для журналирования входящих вызовов и разбора инцидентов.
+            Идентификатор нужно указать самостоятельно, для этого можно использовать стандартные библиотеки и классы для генерации UUID и GUID.
+            Пример: `6f0b1291-c7f3-43c6-bb2e-9f3efb2dc98e`.
+          required: true
+          schema:
+            type: string
+            format: uuidv4
+            pattern: (([0-9a-fA-F-])36)
+            example: 6f0b1291-c7f3-43c6-bb2e-9f3efb2dc98e
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestToken'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Token'
+          description: OK
+        '400':
+          $ref: '#/components/responses/BadRequestFormat'
+        '401':
+          $ref: '#/components/responses/AuthUnauthorizedError'
+      operationId: postToken
+      summary: Получить токен доступа
+      description: |
+        Возвращает токен доступа для авторизации запросов к API.
+        Токен доступа действителен в течение 30 минут.
+
+        В заголовке `Authorization` нужно передать ключ авторизации — строку, полученную в результате кодирования в base64 идентификатора (Client ID) и клиентского ключа (Client Secret) API.
+
+        Консоль запросов автоматически кодирует заданные идентификатор и клиентский ключ.
+        :::note
+        Как получить ключ авторизации и токен доступа Access token читайте в разделах [Быстрый старт для физических лиц](/ru/gigachat/individuals-quickstart) и [Быстрый старт для ИП и юридических лиц](/ru/gigachat/legal-quickstart).
+        :::
+components:
+  schemas:
+    Token:
+      type: object
+      properties:
+        access_token:
+          type: string
+          description: Токен для авторизации запросов.
+          example: >-
+            eyJhbGci3iJkaXIiLCJlbmMiOiJBMTI4R0NNIiwidHlwIjoiSldUIn0..Dx7iF7cCxL8SSTKx.Uu9bPK3tPe_crdhOJqU3fmgJo_Ffvt4UsbTG6Nn0CHghuZgA4mD9qiUiSVC--okoGFkjO77W.vjYrk3T7vGM6SoxytPkDJw
+        expires_at:
+          format: int64
+          description: Дата и время истечения действия токена в формате Unix time.
+          type: integer
+          example: 1679471442
+    RequestToken:
+      description: Ошибка авторизации.
+      type: object
+      properties:
+        scope:
+          type: string
+          example: GIGACHAT_API_PERS
+  responses:
+    AuthUnauthorizedError:
+      description: Ошибка авторизации.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                description: Код ошибки.
+                example: 6
+              message:
+                type: string
+                description: Описание ошибки.
+                example: credentials doesn't match db data
+    BadRequestFormat:
+      description: |
+        400 Bad request.
+        Некорректный формат запроса.

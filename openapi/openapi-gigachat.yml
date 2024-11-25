@@ -1,0 +1,424 @@
+openapi: 3.0.3
+info:
+  title: GigaChat API
+  version: 1.0.0
+  contact:
+    name: GigaChat API
+    url: 'https://developers.sber.ru/portal/products/gigachat-api'
+    email: gigachat@sberbank.ru
+  description: |
+    
+    Справочная документация по REST API нейросетевой модели GigaChat.
+
+    О стоимости и условиях использования GigaChat API вы можете узнать в разделе [Тарифы и оплата](/ru/gigachat/api/tariffs).
+
+    ## Получение токена доступа и авторизация запросов
+
+    Запросы к GigaChat API передаются по адресу `https://gigachat.devices.sberbank.ru/` и авторизуются с помощью токена доступа по протоколу [OAuth 2.0](https://tools.ietf.org/html/rfc6749).
+    Токен доступа передается в заголовке `Authorization`:
+    
+    ```sh
+    curl -L -X GET 'https://gigachat.devices.sberbank.ru/api/v1/models' \
+    -H 'Accept: application/json' \
+    -H 'Authorization: Bearer <токен_доступа>'
+    ```
+
+    :::tip
+    
+    Вы также можете передавать запросы к [моделям в раннем доступе](/ru/gigachat/models/preview-models).
+    Их возможности могут отличаться от моделей, доступных в промышленном контуре.
+
+    Для обращения к моделям в раннем доступе передавайте запросы по адресу `https://gigachat-preview.devices.sberbank.ru/`.
+    
+    :::
+
+    Чтобы получить токен, отправьте запрос [POST /api/v2/oauth](/ru/gigachat/api/reference/rest/post-token):
+
+    ```sh
+    curl -L -X POST 'https://ngw.devices.sberbank.ru:9443/api/v2/oauth' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    -H 'Accept: application/json' \
+    -H 'RqUID: <идентификатор_запроса>' \
+    -H 'Authorization: Basic ключ_авторизации' \
+    --data-urlencode 'scope=GIGACHAT_API_PERS'
+    ```
+
+    Где:
+
+    * `RqUID` — обязательный заголовок, в котором нужно передать уникальный идентификатор запроса в формате `uuid4`. Идентификатор нужно указать самостоятельно, для этого можно использовать стандартные библиотеки и классы для генерации UUID и GUID.
+    * `Authorization` — обязательный заголовок, в котором нужно передать ключ авторизации — строку, полученную в результате кодирования в base64 идентификатора (Client ID) и клиентского ключа (Client Secret) API.
+    * `scope` — обязательное поле в теле запроса, которое указывает к какой версии API выполняется запрос. Возможные значения:
+      * `GIGACHAT_API_PERS` — доступ для физических лиц.
+      * `GIGACHAT_API_B2B` — доступ для ИП и юридических лиц по [платным пакетам](/ru/gigachat/quickstart/legal-tokens-purchase#pokupka-paketov).
+      * `GIGACHAT_API_CORP` — доступ для ИП и юридических лиц по схеме [pay-as-you-go](/ru/gigachat/quickstart/legal-tokens-purchase#oplata-pay-as-you-go).
+
+    При успешном выполнении запроса GigaChat API вернет токен доступа, который действует в течение 30 минут:
+
+    ```json
+    {
+      "access_token": "eyJhbGci3iJkaXIiLCJlbmMiOiJBMTI4R0NNIiwidHlwIjoiSldUIn0..Dx7iF7cCxL8SSTKx.Uu9bPK3tPe_crdhOJqU3fmgJo_Ffvt4UsbTG6Nn0CHghuZgA4mD9qiUiSVC--okoGFkjO77W.vjYrk3T7vGM6SoxytPkDJw",
+      "expires_at": 1679471442
+    }
+    ```
+
+    :::note
+
+    Как получить ключ авторизации и токен доступа Access token читайте в разделах [Быстрый старт для физических лиц](/ru/gigachat/individuals-quickstart) и [Быстрый старт для ИП и юридических лиц](/ru/gigachat/legal-quickstart).
+
+    :::
+
+    ## Обращение к моделям в раннем доступе
+
+    Модели для генерации GigaChat регулярно обновляются и у них появляются новые возможности, например, вызов функций.
+    В таких случаях новые версии моделей некоторое время доступны в раннем доступе.
+
+    Для обращения к таким моделям используйте адрес `https://gigachat-preview.devices.sberbank.ru/`, а к названию модели, которое передается в поле `model`, добавьте постфикс `-preview`.
+
+    Подробнее — в разделе [Модели GigaChat](/ru/gigachat/models/preview-models).
+
+servers:
+  - url: https://gigachat.devices.sberbank.ru/api/v1
+  - url: https://gigachat-preview.devices.sberbank.ru/api/v1
+
+paths:
+  /chat/completions:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Chat'
+              example: { "model": "GigaChat","messages": [ { "role": "system","content": "Ты профессиональный переводчик на английский язык. Переведи точно сообщение пользователя." },{ "role": "user","content": "GigaChat — это сервис, который умеет взаимодействовать с пользователем в формате диалога, писать код, создавать тексты и картинки по запросу пользователя." } ],"stream": false,"update_interval": 0 }
+      tags:
+        - GigaChat
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatCompletion'
+          description: OK
+        '400':
+          $ref: '#/components/responses/BadRequestFormat'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NoSuchModel'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+components:
+  parameters:
+    xClientId:
+      name: X-Client-ID
+      in: header
+      schema:
+        type: string
+        description: |
+          Произвольный идентификатор пользователя, который используется для логирования.
+
+          Если вы передали этот заголовок при запросе на создание изображения, то для скачивания изображения в запросе [`GET /files/{file_id}/content`](/ru/gigachat/api/reference/rest/get-file-id) нужно передать этот же заголовок.
+    xRequestId:
+      in: header
+      name: X-Request-ID
+      schema:
+        type: string
+        description: Произвольный идентификатор запроса, который используется для логирования.
+    xSessionId:
+      in: header
+      name: X-Session-ID
+      schema:
+        type: string
+        description: Произвольный идентификатор сессии, который используется для логирования.
+  schemas:
+    Model:
+      type: object
+      properties:
+        id:
+          description: |
+            Название модели. Описание доступных моделей смотрите в разделе [Модели GigaChat](/ru/gigachat/models).
+
+            При обращении к моделям в раннем доступе к названию модели нужно добавлять постфикс `-preview`.
+            Например, `GigaChat-Pro-preview`.
+          type: string
+          enum:
+            - GigaChat
+            - GigaChat-Pro
+          example: GigaChat
+        object:
+          description: Тип сущности в ответе, например, модель
+          type: string
+          example: model
+        owned_by:
+          description: Владелец модели
+          type: string
+          example: salutedevices
+    Chat:
+      required:
+        - model
+        - messages
+      type: object
+      properties:
+        model:
+          description: |
+            Название модели. Описание доступных моделей смотрите в разделе [Модели GigaChat](/ru/gigachat/models).
+
+            При обращении к моделям в раннем доступе к названию модели нужно добавлять постфикс `-preview`.
+            Например, `GigaChat-Pro-preview`.
+          type: string
+          enum:
+            - GigaChat
+            - GigaChat-Pro
+          example: GigaChat
+        messages:
+          type: array
+          description: Массив сообщений, которыми пользователь обменивался с моделью.
+          items:
+            $ref: '#/components/schemas/message'
+        update_interval:
+          type: number
+          description: |
+            Параметр потокового режима (`"stream": "true"`).
+            Задает минимальный интервал в секундах, который проходит между отправкой токенов.
+            Например, если указать `1`, сообщения будут приходить каждую секунду, но размер каждого из них будет больше, так как за секунду накапливается много токенов.
+          default: 0
+          example: 0
+        stream:
+          type: boolean
+          description: |
+            Указывает что сообщения надо передавать по частям в потоке.
+
+            Сообщения передаются по протоколу [SSE](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events#event_stream_format).
+
+            Поток завершается событием `data: [DONE]`.
+
+            Подробнее читайте в разделе [Потоковая генерация токенов](/ru/gigachat/api/response-token-streaming).
+          default: false
+          example: false
+    message:
+      type: object
+      properties:
+        role:
+          type: string
+          description: |
+            Роль автора сообщения:
+
+            * `system` — системный промпт, который задает роль модели, например, должна модель отвечать как академик или как школьник;
+            * `assistant` — ответ модели;
+            * `user` — сообщение пользователя;
+            * `function` — сообщение с результатом работы [пользовательской функции](/ru/gigachat/api/function-calling#rabota-s-sobstvennymi-funktsiyami). В сообщении с этой ролью передавайте в поле `content` валидный JSON-объект с результатами работы функции.
+
+            Для сохранения контекста диалога с пользователем передайте несколько сообщений. Подробнее читайте в разделе [Работа с историей чата](/ru/gigachat/api/keeping-context).
+          enum:
+            - system
+            - user
+            - assistant
+            - function
+          example: user
+        content:
+          description: |
+            Содержимое сообщения. Зависит от роли.
+
+            Если поле передается в сообщении с ролью `function`, то в нем указывается валидный JSON-объект с аргументами функции, указанной в поле `function_call.name`.
+
+            В остальных случаях содержит либо системный промпт (сообщение с ролью `system`), либо текст сообщения пользователя или модели.
+          type: string
+          example: |
+            Какая погода в Москве?
+    MessagesRes:
+      type: object
+      description: Сгенерированное сообщение.
+      properties:
+        role:
+          type: string
+          enum:
+            - assistant
+            - function_in_progress
+          description: |
+            Роль автора сообщения.
+
+            Роль `function_in_progress` используется при работе встроенных функций в режиме [потоковой передачи токенов](/ru/gigachat/api/function-calling#potokovaya-peredacha-tokenov).
+          example: assistant
+        content:
+          type: string
+          description: |
+            Содержимое сообщения, например, результат генерации.
+
+            В сообщениях с ролью `function_in_progress` содержит информацию о том, сколько времени осталось до завершения работы встроенной функции.
+          example: 'Здравствуйте! К сожалению, я не могу дать точный ответ на этот вопрос, так как это зависит от многих факторов. Однако обычно релиз новых функций и обновлений в GigaChat происходит постепенно и незаметно для пользователей. Рекомендую следить за новостями и обновлениями проекта в официальном сообществе GigaChat или на сайте разработчиков.'
+    Usage:
+      type: object
+      description: Данные об использовании модели.
+      properties:
+        prompt_tokens:
+          format: int32
+          description: Количество токенов во входящем сообщении (роль `user`).
+          type: integer
+          example: 18
+        completion_tokens:
+          format: int32
+          description: Количество токенов, сгенерированных моделью (роль `assistant`).
+          type: integer
+          example: 68
+        total_tokens:
+          format: int32
+          description: Общее количество токенов.
+          type: integer
+          example: 86
+    ChatCompletion:
+      type: object
+      properties:
+        choices:
+          type: array
+          description: Массив ответов модели.
+          items:
+            $ref: '#/components/schemas/Choices'
+        created:
+          format: int64
+          type: integer
+          description: Дата и время создания ответа в формате Unix time.
+          example: 1678878333
+        model:
+          description: |
+            Название модели. Описание доступных моделей смотрите в разделе [Модели GigaChat](/ru/gigachat/models).
+
+            При обращении к моделям в раннем доступе к названию модели нужно добавлять постфикс `-preview`.
+            Например, `GigaChat-Pro-preview`.
+          type: string
+          example: GigaChat
+        usage:
+          $ref: '#/components/schemas/Usage'
+        object:
+          type: string
+          description: Название вызываемого метода.
+          example: chat.completion
+    Choices:
+      type: object
+      properties:
+        message:
+          $ref: '#/components/schemas/MessagesRes'
+        index:
+          format: int32
+          type: integer
+          description: Индекс сообщения в массиве, начиная с ноля.
+          example: 0
+        finish_reason:
+          description: |
+            Причина завершения гипотезы. Возможные значения:
+            
+            * `stop` — модель закончила формировать гипотезу и вернула полный ответ;
+            * `length` — достигнут лимит токенов в сообщении;
+            * `function_call` — указывает, что при запросе была вызвана встроенная функция или сгенерированы аргументы для пользовательской функции;
+            * `blacklist` — запрос попадает под [тематические ограничения](/ru/gigachat/limitations#tematicheskie-ogranicheniya-zaprosov).
+            * `error` — ответ модели содержит невалидные аргументы пользовательской функции.
+
+          type: string
+          enum:
+            - stop
+            - length
+            - function_call
+            - blacklist
+            - error
+          example: "stop"
+  responses:
+    UnauthorizedError:
+      description: Ошибка авторизации.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                type: integer
+                description: HTTP-код сообщения.
+                default: 401
+              message:
+                type: string
+                description: Описание ошибки.
+                default: Unauthorized
+    TokenExpired:
+      description: Истек срок действия токена.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                type: integer
+                description: HTTP-код сообщения.
+                default: 401
+              message:
+                type: string
+                description: Описание ошибки.
+                default: Token has expired
+    NoSuchModel:
+      description: |
+        Указан неверный идентификатор модели.
+
+        Список доступных моделей и их идентификаторов — в разделе [Модели GigaChat](/ru/gigachat/models).
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                type: integer
+                description: HTTP-код сообщения.
+                default: 404
+              message:
+                type: string
+                description: Описание ошибки.
+                default: No such model
+    InternalError:
+      description: Внутренняя ошибка сервера.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                type: integer
+                description: HTTP-код сообщения.
+                default: 500
+              message:
+                type: string
+                description: Описание ошибки.
+                default: Internal Server Error
+    BadRequestFormat:
+      description: |
+        400 Bad request.
+
+        Некорректный формат запроса.
+    TooManyRequests:
+      description: Слишком много запросов в единицу времени.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                type: integer
+                description: HTTP-код сообщения.
+                default: 429
+              message:
+                type: string
+                description: Описание ошибки.
+                default: Too many requests
+    ValidationError:
+      description: Ошибка валидации параметров запроса. Проверьте названия полей и значения параметров.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                type: integer
+                description: HTTP-код сообщения.
+                default: 422
+              message:
+                type: string
+                description: Описание ошибки.
+                example: "Invalid params: repetition_penalty must be in range (0, +inf)"
